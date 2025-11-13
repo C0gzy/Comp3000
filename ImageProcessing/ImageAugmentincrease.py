@@ -4,14 +4,14 @@ import os
 from pathlib import Path
 from PIL import Image
 from tqdm import tqdm
-
+import asyncio
 
 import shutil
 
 os.makedirs("../CoralDataSetAugmented/train/CORAL", exist_ok=True)
 os.makedirs("../CoralDataSetAugmented/train/CORAL_BL", exist_ok=True)
 
-def augment_images(image_dir, output_dir):
+async def augment_images(image_dir, output_dir):
     shutil.copytree(image_dir, output_dir, dirs_exist_ok=True)
     image_dir = Path(image_dir)
     output_dir = Path(output_dir)
@@ -33,14 +33,26 @@ def augment_images(image_dir, output_dir):
             flipped_lr = img.transpose(Image.FLIP_LEFT_RIGHT)
             flipped_lr.save(output_dir / f"{stem}_flipped_left_right{base_ext}")
 
-            flipped_tb = img.transpose(Image.FLIP_TOP_BOTTOM)
-            flipped_tb.save(output_dir / f"{stem}_flipped_top_bottom{base_ext}")
+            rotated_15 = img.rotate(15)
+            rotated_15.save(output_dir / f"{stem}_rotated_15{base_ext}")
+
+            rotated_minus15 = img.rotate(-15)
+            rotated_minus15.save(output_dir / f"{stem}_rotated_minus15{base_ext}")
+
+            flipped_15 = img.transpose(Image.FLIP_LEFT_RIGHT).rotate(15)
+            flipped_15.save(output_dir / f"{stem}_flipped_left_right_rotated_15{base_ext}")
+
+            flipped_minus15 = img.transpose(Image.FLIP_LEFT_RIGHT).rotate(-15)
+            flipped_minus15.save(output_dir / f"{stem}_flipped_left_right_rotated_minus15{base_ext}")
+
+            #flipped_tb = img.transpose(Image.FLIP_TOP_BOTTOM)
+            #flipped_tb.save(output_dir / f"{stem}_flipped_top_bottom{base_ext}")
 
     print(
         f"Augmented {len(image_files)} images in {image_dir}. "
         f"Total files in output: {len(list(output_dir.glob('*')))}"
     )
 
-
-augment_images("../CoralDataSet/train/CORAL", "../CoralDataSetAugmented/train/CORAL")
-augment_images("../CoralDataSet/train/CORAL_BL", "../CoralDataSetAugmented/train/CORAL_BL")
+if __name__ == "__main__":
+    asyncio.run(augment_images("../CoralDataSet/train/CORAL", "../CoralDataSetAugmented/train/CORAL"))
+    asyncio.run(augment_images("../CoralDataSet/train/CORAL_BL", "../CoralDataSetAugmented/train/CORAL_BL"))

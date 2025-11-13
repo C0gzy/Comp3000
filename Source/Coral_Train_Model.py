@@ -13,9 +13,9 @@ print("Starting Coral Train Model...")
 
 # Configuration
 IMG_SIZE = 224  # Target width/height in pixels (matches dataset patches)
-BATCH_SIZE = 16  # Number of images per training step
-EPOCHS = 20  # Max number of times the model sees the full training set
-LEARNING_RATE = 0.001  # Initial step size for the Adam optimizer
+BATCH_SIZE = 32  # Number of images per training step
+EPOCHS = 25  # Max number of times the model sees the full training set
+LEARNING_RATE = 0.0005  # Initial step size for the Adam optimizer
 USE_CLASS_WEIGHTS = True  # Enable class weighting to handle imbalance
 OPTIMIZE_THRESHOLD = True  # Find optimal classification threshold
 
@@ -28,7 +28,7 @@ async def load_images(image_dir):
     return images
 
 def load_and_preprocess_image(image_path, label):
-    """Load and preprocess a single image"""
+    #Load and preprocess a single image
     img = tf.io.read_file(image_path)
     img = tf.image.decode_image(img, channels=3, expand_animations=False)
     img = tf.image.resize(img, [IMG_SIZE, IMG_SIZE])

@@ -11,7 +11,7 @@ THRESHOLD = 0.5  # probability threshold for binary classification
 
 
 def load_and_preprocess_image(image_path: str) -> tf.Tensor:
-    """Load an image from disk, resize, normalise, and add batch dimension."""
+    #Load an image from disk, resize, normalise, and add batch dimension.
     image = tf.io.read_file(image_path)
     image = tf.image.decode_image(image, channels=3, expand_animations=False)
     image = tf.image.resize(image, [IMG_SIZE, IMG_SIZE])
