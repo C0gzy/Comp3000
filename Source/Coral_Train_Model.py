@@ -109,7 +109,7 @@ def calculate_class_weights(labels):
     print(f"  Class 1 (Bleached): {class_weight_dict[1]:.4f}")
     return class_weight_dict
 
-def evaluate_with_threshold(model, dataset, labels, threshold=0.5):
+def evaluate_with_threshold(model, dataset, labels, threshold=0.4):
     #Evaluate model with a custom classification threshold
     # Get predictions (probabilities)
     predictions = model.predict(dataset, verbose=0)
@@ -255,24 +255,24 @@ async def main():
         verbose=1
     )
     
-    # Evaluate on test set with default threshold (0.5)
+    # Evaluate on test set with default threshold (0.4)
 
-    print("Evaluating on test set (threshold=0.5)...")
+    print("Evaluating on test set (threshold=0.4)...")
 
     test_results = model.evaluate(test_dataset, verbose=1)
-    print(f"\nTest Results (threshold=0.5):")
+    print(f"\nTest Results (threshold=0.4):")
     print(f"Loss: {test_results[0]:.4f}")
     print(f"Accuracy: {test_results[1]:.4f}")
     print(f"Precision: {test_results[2]:.4f}")
     print(f"Recall: {test_results[3]:.4f}")
     
     # Find optimal threshold if enabled
-    optimal_threshold = 0.5
+    optimal_threshold = 0.4
     if OPTIMIZE_THRESHOLD:
     
         print("Threshold Optimization")
 
-        optimal_threshold = find_optimal_threshold(model, val_dataset, val_labels, metric='f1')
+        optimal_threshold = find_optimal_threshold(model, val_dataset, val_labels, metric='recall')
         
         # Evaluate with optimal threshold
     

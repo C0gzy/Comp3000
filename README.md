@@ -1,9 +1,9 @@
 # Comp3000
 
-[!WARNING]
-This project uses [Git Large File Storage (Git LFS)](https://git-lfs.github.com/) for storing large model files (such as `.h5`, `.keras`, `.pb`).  
-To properly clone or contribute to this repository, make sure you have [Git LFS installed and initialized](https://git-lfs.github.com/) on your system.  
-Otherwise, model files will not be downloaded correctly.
+> [!WARNING]
+> This project uses [Git Large File Storage (Git LFS)](https://git-lfs.github.com/) for storing large model files (such as `.h5`, `.keras`, `.pb`).  
+> To properly clone or contribute to this repository, make sure you have [Git LFS installed and initialized](https://git-lfs.github.com/) on your system.  
+> Otherwise, model files will not be downloaded correctly.
 
 # Coral Reef Health Monitor using classifcation models and deep learning
 

@@ -2,10 +2,10 @@
 
 import os
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageFilter
 from tqdm import tqdm
 import asyncio
-
+import random
 import shutil
 
 os.makedirs("../CoralDataSetAugmented/train/CORAL", exist_ok=True)
@@ -44,6 +44,12 @@ async def augment_images(image_dir, output_dir):
 
             flipped_minus15 = img.transpose(Image.FLIP_LEFT_RIGHT).rotate(-15)
             flipped_minus15.save(output_dir / f"{stem}_flipped_left_right_rotated_minus15{base_ext}")
+
+            # Colour jitter
+            colour_jitter = img.filter(ImageFilter.ColorJitter(brightness=random.uniform(0.1, 0.2), contrast=random.uniform(0.1, 0.2), saturation=random.uniform(0.1, 0.2), hue=random.uniform(0.1, 0.2))) 
+            colour_jitter.save(output_dir / f"{stem}_colour_jitter{base_ext}")
+
+
 
             #flipped_tb = img.transpose(Image.FLIP_TOP_BOTTOM)
             #flipped_tb.save(output_dir / f"{stem}_flipped_top_bottom{base_ext}")
