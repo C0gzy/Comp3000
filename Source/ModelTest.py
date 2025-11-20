@@ -35,7 +35,6 @@ def predict_image(image_path: str) -> None:
     print(f"- Probability of bleaching: {probability:.4f}")
     print(f"- Predicted class: {predicted_label}")
 
-    # Optional: display the image
     plt.imshow(tf.squeeze(image))
     plt.title(f"{predicted_label} (p={probability:.2f})")
     plt.axis("off")
@@ -43,6 +42,5 @@ def predict_image(image_path: str) -> None:
 
 
 if __name__ == "__main__":
-    # Example usage: point to any image within the dataset
     SAMPLE_IMAGE = "../CoralDataSet/test/CORAL_BL/KawaihaeShallow2015IMG_5205_2340.PNG"
     predict_image(SAMPLE_IMAGE)

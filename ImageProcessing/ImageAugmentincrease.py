@@ -2,16 +2,21 @@
 
 import os
 from pathlib import Path
-from PIL import Image, ImageFilter
+from PIL import Image, ImageEnhance
 from tqdm import tqdm
 import asyncio
 import random
 import shutil
+import concurrent.futures
 
 os.makedirs("../CoralDataSetAugmented/train/CORAL", exist_ok=True)
 os.makedirs("../CoralDataSetAugmented/train/CORAL_BL", exist_ok=True)
+os.makedirs("../CoralDataSetAugmented/val/CORAL", exist_ok=True)
+os.makedirs("../CoralDataSetAugmented/val/CORAL_BL", exist_ok=True)
+os.makedirs("../CoralDataSetAugmented/test/CORAL", exist_ok=True)
+os.makedirs("../CoralDataSetAugmented/test/CORAL_BL", exist_ok=True)
 
-async def augment_images(image_dir, output_dir):
+def augment_images(image_dir, output_dir):
     shutil.copytree(image_dir, output_dir, dirs_exist_ok=True)
     image_dir = Path(image_dir)
     output_dir = Path(output_dir)
@@ -33,21 +38,43 @@ async def augment_images(image_dir, output_dir):
             flipped_lr = img.transpose(Image.FLIP_LEFT_RIGHT)
             flipped_lr.save(output_dir / f"{stem}_flipped_left_right{base_ext}")
 
-            rotated_15 = img.rotate(15)
-            rotated_15.save(output_dir / f"{stem}_rotated_15{base_ext}")
+            rotated_15 = img.rotate(2)
+            rotated_15.save(output_dir / f"{stem}_rotated_2{base_ext}")
 
-            rotated_minus15 = img.rotate(-15)
-            rotated_minus15.save(output_dir / f"{stem}_rotated_minus15{base_ext}")
+            rotated_minus15 = img.rotate(-2)
+            rotated_minus15.save(output_dir / f"{stem}_rotated_minus2{base_ext}")
 
-            flipped_15 = img.transpose(Image.FLIP_LEFT_RIGHT).rotate(15)
-            flipped_15.save(output_dir / f"{stem}_flipped_left_right_rotated_15{base_ext}")
+            flipped_15 = img.transpose(Image.FLIP_LEFT_RIGHT).rotate(2)
+            flipped_15.save(output_dir / f"{stem}_flipped_left_right_rotated_2{base_ext}")
 
-            flipped_minus15 = img.transpose(Image.FLIP_LEFT_RIGHT).rotate(-15)
-            flipped_minus15.save(output_dir / f"{stem}_flipped_left_right_rotated_minus15{base_ext}")
+            flipped_minus15 = img.transpose(Image.FLIP_LEFT_RIGHT).rotate(-2)
+            flipped_minus15.save(output_dir / f"{stem}_flipped_left_right_rotated_minus2{base_ext}")
 
-            # Colour jitter
-            colour_jitter = img.filter(ImageFilter.ColorJitter(brightness=random.uniform(0.1, 0.2), contrast=random.uniform(0.1, 0.2), saturation=random.uniform(0.1, 0.2), hue=random.uniform(0.1, 0.2))) 
+            # Color jitter using PIL's ImageEnhance utilities
+            brightness_factor = random.uniform(0.5, 2)
+            contrast_factor = random.uniform(0.5, 2)
+            color_factor = random.uniform(0.5, 2)
+            sharpness_factor = random.uniform(0.5, 2)
+
+            colour_jitter = ImageEnhance.Brightness(img).enhance(brightness_factor)
+            colour_jitter = ImageEnhance.Contrast(colour_jitter).enhance(contrast_factor)
+            colour_jitter = ImageEnhance.Color(colour_jitter).enhance(color_factor)
+            colour_jitter = ImageEnhance.Sharpness(colour_jitter).enhance(sharpness_factor)
             colour_jitter.save(output_dir / f"{stem}_colour_jitter{base_ext}")
+
+            # Zoom (scale up to 254px max, then crop back to original size to remove edges)
+            max_zoom = min(254 / img.width, 1.5)
+            zoom_factor = random.uniform(1.2, max_zoom)
+            zoomed_width = int(img.width * zoom_factor)
+            zoomed_height = int(img.height * zoom_factor)
+            zoomed = img.resize((zoomed_width, zoomed_height), Image.LANCZOS)
+
+            left = (zoomed_width - img.width) // 2
+            top = (zoomed_height - img.height) // 2
+            right = left + img.width
+            bottom = top + img.height
+            zoomed_cropped = zoomed.crop((left, top, right, bottom))
+            zoomed_cropped.save(output_dir / f"{stem}_zoomed{base_ext}")
 
 
 
@@ -60,5 +87,10 @@ async def augment_images(image_dir, output_dir):
     )
 
 if __name__ == "__main__":
-    asyncio.run(augment_images("../CoralDataSet/train/CORAL", "../CoralDataSetAugmented/train/CORAL"))
-    asyncio.run(augment_images("../CoralDataSet/train/CORAL_BL", "../CoralDataSetAugmented/train/CORAL_BL"))
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        executor.submit(augment_images, "../CoralDataSet/train/CORAL", "../CoralDataSetAugmented/train/CORAL")
+        executor.submit(augment_images, "../CoralDataSet/train/CORAL_BL", "../CoralDataSetAugmented/train/CORAL_BL")
+        executor.submit(augment_images, "../CoralDataSet/val/CORAL", "../CoralDataSetAugmented/val/CORAL")
+        executor.submit(augment_images, "../CoralDataSet/val/CORAL_BL", "../CoralDataSetAugmented/val/CORAL_BL")
+        executor.submit(augment_images, "../CoralDataSet/test/CORAL", "../CoralDataSetAugmented/test/CORAL")
+        executor.submit(augment_images, "../CoralDataSet/test/CORAL_BL", "../CoralDataSetAugmented/test/CORAL_BL")

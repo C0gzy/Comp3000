@@ -3,6 +3,11 @@ import warnings
 warnings.filterwarnings('ignore', category=UserWarning, module='google.protobuf')
 
 import tensorflow as tf
+from tensorflow.keras.applications import DenseNet121, ResNet50
+from tensorflow.keras.layers import Input, GlobalAveragePooling2D, Dense, Dropout, BatchNormalization, Rescaling
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.utils.class_weight import compute_class_weight
+from tensorflow.keras.models import Model
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -12,10 +17,11 @@ from tqdm import tqdm
 print("Starting Coral Train Model...")
 
 # Configuration
+MODEL_TYPE = 'resnet'  # Options: 'custom', 'densenet', 'resnet'
 IMG_SIZE = 224  # Target width/height in pixels (matches dataset patches)
 BATCH_SIZE = 32  # Number of images per training step
 EPOCHS = 25  # Max number of times the model sees the full training set
-LEARNING_RATE = 0.0005  # Initial step size for the Adam optimizer
+LEARNING_RATE = 0.001  # Initial step size for the Adam optimizer
 USE_CLASS_WEIGHTS = True  # Enable class weighting to handle imbalance
 OPTIMIZE_THRESHOLD = True  # Find optimal classification threshold
 
@@ -32,57 +38,83 @@ def load_and_preprocess_image(image_path, label):
     img = tf.io.read_file(image_path)
     img = tf.image.decode_image(img, channels=3, expand_animations=False)
     img = tf.image.resize(img, [IMG_SIZE, IMG_SIZE])
-    img = tf.cast(img, tf.float32) / 255.0  # Normalize to [0, 1]
+    img = tf.cast(img, tf.float32)  # Keep as float32 [0, 255] for model-specific preprocessing
     return img, label
 
 def create_dataset(image_paths, labels, shuffle=True, batch_size=BATCH_SIZE):
     #Create a TensorFlow dataset from image paths and labels
     dataset = tf.data.Dataset.from_tensor_slices((image_paths, labels))
+    # shuffle so the dataset learns from the images not the order of the images
     if shuffle:
-        dataset = dataset.shuffle(buffer_size=len(image_paths))
+        dataset = dataset.shuffle(len(image_paths) * 100)
     dataset = dataset.map(load_and_preprocess_image, num_parallel_calls=tf.data.AUTOTUNE)
     dataset = dataset.batch(batch_size)
     dataset = dataset.prefetch(tf.data.AUTOTUNE)
     return dataset
 
-def create_model():
-    #Create a CNN model for binary classification
-    model = tf.keras.Sequential([
+def create_model(model_type=MODEL_TYPE):
+    #Create a model based on the specified type (custom, densenet, or resnet)
+    print(f"Creating model: {model_type}")
+    inputs = Input(shape=(IMG_SIZE, IMG_SIZE, 3))
+    
+    if model_type == 'densenet':
+        # DenseNet expects inputs in range [0, 255] and applies its own normalization
+        x = tf.keras.applications.densenet.preprocess_input(inputs)
+        base_model = DenseNet121(weights='imagenet', include_top=False, input_tensor=x)
+        base_model.trainable = False  # Freeze base model
+        x = base_model.output
+        x = GlobalAveragePooling2D()(x)
+        
+    elif model_type == 'resnet':
+        # ResNet expects inputs in range [0, 255] (BGR centered)
+        # Note: ResNet50 preprocessing converts RGB to BGR
+        x = tf.keras.applications.resnet50.preprocess_input(inputs)
+        base_model = ResNet50(weights='imagenet', include_top=False, input_tensor=x)
+        base_model.trainable = False  # Freeze base model
+        x = base_model.output
+        x = GlobalAveragePooling2D()(x)
+        
+    else: # custom
+        # Custom model expects [0, 1]
+        x = Rescaling(1./255)(inputs)
+        
         # First convolutional block
-        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(IMG_SIZE, IMG_SIZE, 3)),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling2D(2, 2),
-        tf.keras.layers.Dropout(0.25),
+        x = tf.keras.layers.Conv2D(32, (3, 3), activation='relu')(x)
+        x = BatchNormalization()(x)
+        x = tf.keras.layers.MaxPooling2D(2, 2)(x)
+        x = Dropout(0.25)(x)
         
         # Second convolutional block
-        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling2D(2, 2),
-        tf.keras.layers.Dropout(0.25),
+        x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu')(x)
+        x = BatchNormalization()(x)
+        x = tf.keras.layers.MaxPooling2D(2, 2)(x)
+        x = Dropout(0.25)(x)
         
         # Third convolutional block
-        tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling2D(2, 2),
-        tf.keras.layers.Dropout(0.25),
+        x = tf.keras.layers.Conv2D(128, (3, 3), activation='relu')(x)
+        x = BatchNormalization()(x)
+        x = tf.keras.layers.MaxPooling2D(2, 2)(x)
+        x = Dropout(0.25)(x)
         
         # Fourth convolutional block
-        tf.keras.layers.Conv2D(256, (3, 3), activation='relu'),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.MaxPooling2D(2, 2),
-        tf.keras.layers.Dropout(0.25),
+        x = tf.keras.layers.Conv2D(256, (3, 3), activation='relu')(x)
+        x = BatchNormalization()(x)
+        x = tf.keras.layers.MaxPooling2D(2, 2)(x)
+        x = Dropout(0.25)(x)
         
-        # Flatten and dense layers
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(512, activation='relu'),
-        tf.keras.layers.BatchNormalization(),
-        tf.keras.layers.Dropout(0.5),
-        tf.keras.layers.Dense(256, activation='relu'),
-        tf.keras.layers.Dropout(0.5),
-        
-        # Output layer (binary classification)
-        tf.keras.layers.Dense(1, activation='sigmoid')
-    ])
+        x = GlobalAveragePooling2D()(x)
+
+    # Common Classification Head
+    x = Dense(256, activation='relu')(x)
+    x = BatchNormalization()(x)
+    x = Dropout(0.4)(x)
+    x = Dense(64, activation='relu')(x)
+    x = Dropout(0.3)(x)
+    
+    # Output layer (binary classification)
+    outputs = Dense(1, activation='sigmoid')(x)
+    
+    model = Model(inputs, outputs)
     
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE),
@@ -94,7 +126,7 @@ def create_model():
 
 def calculate_class_weights(labels):
     #Calculate class weights to handle imbalanced datasets
-    from sklearn.utils.class_weight import compute_class_weight
+    
     
     unique_labels = np.unique(labels)
     class_weights = compute_class_weight(
@@ -118,7 +150,7 @@ def evaluate_with_threshold(model, dataset, labels, threshold=0.4):
     binary_predictions = (predictions >= threshold).astype(int).flatten()
     
     # Calculate metrics
-    from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+    
     
     accuracy = accuracy_score(labels, binary_predictions)
     precision = precision_score(labels, binary_predictions, zero_division=0)
@@ -222,7 +254,7 @@ async def main():
     callbacks = [
         tf.keras.callbacks.EarlyStopping(
             monitor='val_loss',
-            patience=10,  # Stop training if validation loss doesn't improve for 5 consecutive epochs
+            patience=8,  # Stop training if validation loss doesn't improve for 5 consecutive epochs
             restore_best_weights=True,
             verbose=1
         ),
@@ -235,7 +267,7 @@ async def main():
         ),
         tf.keras.callbacks.ReduceLROnPlateau(
             monitor='val_loss',
-            factor=0.5,
+            factor=0.25,
             patience=2,  # Reduce learning rate if validation loss doesn't improve for 2 consecutive epochs
             min_lr=1e-7,
             verbose=1
@@ -257,22 +289,22 @@ async def main():
     
     # Evaluate on test set with default threshold (0.4)
 
-    print("Evaluating on test set (threshold=0.4)...")
+    print("Evaluating on test set (threshold=0.5)...")
 
     test_results = model.evaluate(test_dataset, verbose=1)
-    print(f"\nTest Results (threshold=0.4):")
+    print(f"\nTest Results (threshold=0.5):")
     print(f"Loss: {test_results[0]:.4f}")
     print(f"Accuracy: {test_results[1]:.4f}")
     print(f"Precision: {test_results[2]:.4f}")
     print(f"Recall: {test_results[3]:.4f}")
     
     # Find optimal threshold if enabled
-    optimal_threshold = 0.4
+    optimal_threshold = 0.5
     if OPTIMIZE_THRESHOLD:
     
         print("Threshold Optimization")
 
-        optimal_threshold = find_optimal_threshold(model, val_dataset, val_labels, metric='recall')
+        optimal_threshold = find_optimal_threshold(model, val_dataset, val_labels, metric='f1')
         
         # Evaluate with optimal threshold
     
