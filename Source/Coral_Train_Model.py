@@ -17,7 +17,7 @@ from tqdm import tqdm
 print("Starting Coral Train Model...")
 
 # Configuration
-MODEL_TYPE = 'resnet'  # Options: 'custom', 'densenet', 'resnet'
+MODEL_TYPE = 'resnet50'  # Options: 'custom', 'densenet', 'resnet'
 IMG_SIZE = 224  # Target width/height in pixels (matches dataset patches)
 BATCH_SIZE = 32  # Number of images per training step
 EPOCHS = 25  # Max number of times the model sees the full training set
@@ -323,8 +323,8 @@ async def main():
         print(f"  True Positives: {optimal_results['confusion_matrix'][1][1]}")
     
     # Save final model
-    model.save('coral_bleaching_model.h5')
-    print("\nModel saved as 'coral_bleaching_model.h5'")
+    model.save('coral_bleaching_model.keras')
+    print("\nModel saved as 'coral_bleaching_model.keras'")
     
     # Plot training history
     plt.figure(figsize=(12, 4))

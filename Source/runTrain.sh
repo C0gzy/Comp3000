@@ -1,0 +1,1 @@
+/Users/tom/miniforge3/envs/coral/bin/python Coral_Train_Model.py

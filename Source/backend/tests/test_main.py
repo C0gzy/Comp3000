@@ -5,7 +5,15 @@ import numpy as np
 from unittest.mock import patch, MagicMock
 import tensorflow as tf
 
-from main import app, load_and_preprocess_image, predict_image, IMG_SIZE, CLASS_NAMES, THRESHOLD
+from main import (
+    app,
+    load_and_preprocess_image,
+    predict_image,
+    run_classification_job,
+    IMG_SIZE,
+    CLASS_NAMES,
+    THRESHOLD,
+)
 
 # This fixture creates a test client for the Flask app.
 @pytest.fixture
@@ -13,6 +21,16 @@ def client():
     app.config["TESTING"] = True
     with app.test_client() as client:
         yield client
+
+
+@pytest.fixture(autouse=True)
+def reset_v1_jobs():
+    import main
+
+    with main.jobs_lock:
+        main.jobs.clear()
+        main.next_job_id = 1
+    yield
 
 
 # This fixture creates a tiny valid PNG on disk and returns its path.
@@ -175,3 +193,67 @@ def test_classify_wrong_method(client):
 # This test checks if the upload folder exists.
 def test_upload_folder_exists():
     assert os.path.isdir(app.config["UPLOAD_FOLDER"])
+
+
+def test_v1_health(client):
+    response = client.get("/V1/api/health")
+    assert response.status_code == 200
+    assert response.get_json() == {"status": "success"}
+
+
+def test_v1_status_not_found(client):
+    response = client.get("/V1/api/status/99999")
+    assert response.status_code == 404
+
+
+@patch("main.predict_image_dict")
+def test_v1_classify_and_status(mock_predict, client, sample_image_path):
+    mock_predict.return_value = {"probability": 0.3, "predicted_label": "Healthy Coral"}
+    with patch(
+        "main.start_classification_job",
+        side_effect=lambda jid, p: run_classification_job(jid, p),
+    ):
+        with open(sample_image_path, "rb") as f:
+            data = {"image": (io.BytesIO(f.read()), "test_coral.png")}
+            response = client.post(
+                "/V1/api/classify",
+                data=data,
+                content_type="multipart/form-data",
+            )
+    assert response.status_code == 200
+    body = response.get_json()
+    assert "job_id" in body
+    job_id = body["job_id"]
+    status_resp = client.get(f"/V1/api/status/{job_id}")
+    assert status_resp.status_code == 200
+    assert status_resp.get_json()["progress"] == "100%"
+
+
+@patch("main.predict_image_dict")
+def test_v1_delete_job(mock_predict, client, sample_image_path):
+    mock_predict.return_value = {"probability": 0.3, "predicted_label": "Healthy Coral"}
+    with patch(
+        "main.start_classification_job",
+        side_effect=lambda jid, p: run_classification_job(jid, p),
+    ):
+        with open(sample_image_path, "rb") as f:
+            data = {"image": (io.BytesIO(f.read()), "test_coral.png")}
+            response = client.post(
+                "/V1/api/classify",
+                data=data,
+                content_type="multipart/form-data",
+            )
+    job_id = response.get_json()["job_id"]
+    del_resp = client.delete(f"/V1/api/classify/{job_id}")
+    assert del_resp.status_code == 200
+    assert del_resp.get_json() == {"status": "success"}
+    assert client.get(f"/V1/api/status/{job_id}").status_code == 404
+
+
+def test_v1_delete_unknown_job(client):
+    assert client.delete("/V1/api/classify/99999").status_code == 404
+
+
+def test_v1_classify_no_image(client):
+    response = client.post("/V1/api/classify")
+    assert response.status_code == 400
