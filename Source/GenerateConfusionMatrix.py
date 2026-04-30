@@ -7,6 +7,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report
 from tqdm import tqdm
+import tf_keras
 
 MODEL_PATH = "./ModelHistory/V20251116_132020.h5"
 IMG_SIZE = 224
@@ -36,7 +37,7 @@ def load_and_preprocess_image(image_path, label):
 
 def main():
     print(f"Loading model from '{MODEL_PATH}'...")
-    model = tf.keras.models.load_model(MODEL_PATH)
+    model = tf_keras.models.load_model(MODEL_PATH, compile=False)
 
     coral_paths = load_image_paths(TEST_CORAL_DIR)
     bleached_paths = load_image_paths(TEST_BLEACHED_DIR)

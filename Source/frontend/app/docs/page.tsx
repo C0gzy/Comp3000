@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BookOpen, ExternalLink } from "lucide-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
 import { CORAL_DATASET_URL } from "@/lib/dataset";
 
@@ -24,14 +24,14 @@ const endpoints = [
     method: "GET",
     path: "/V1/api/status/{JOB_ID}",
     description:
-      "Returns the progress of the classification job identified by JOB_ID (the value returned when you started a job). Progress is expressed as a percentage string.",
-    response: "200 — JSON: { progress: '20%' } (example)",
+      "Returns the real chunk-analysis progress for JOB_ID. When complete, the same response includes the stitched coloured result image as a base64 PNG plus metadata for each analysed chunk.",
+    response: "200 — JSON: { status, completed_chunks, total_chunks, remaining_chunks, progress, result_image?, chunks? }",
   },
   {
     method: "POST",
     path: "/V1/api/classify",
     description:
-      "Upload an image (multipart form field name: image). The server queues classification and responds immediately with a job ID. Poll GET /V1/api/status/{JOB_ID} until progress reaches 100%.",
+      "Upload an image (multipart form field name: image). The server queues classification, splits images larger than 244x244 into chunks, and responds immediately with a job ID. Poll GET /V1/api/status/{JOB_ID} until status is completed.",
     response: "200 — JSON: { job_id: 1052 } (example job ID)",
   },
   {
@@ -136,6 +136,54 @@ export default function DocsPage() {
           ))}
         </div>
 
+        <section className="mt-10 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Status response
+          </h2>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            Progress is returned as analysed chunks out of total chunks. The final
+            completed response also includes the stitched coloured PNG in
+            <code className="mx-1 rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs dark:bg-zinc-800">
+              result_image
+            </code>
+            .
+          </p>
+          <pre className="mt-4 overflow-x-auto rounded-lg bg-gray-950 p-4 text-xs text-gray-100">
+{`{
+  "status": "processing",
+  "completed_chunks": 3,
+  "total_chunks": 10,
+  "remaining_chunks": 7,
+  "progress": "3/10"
+}`}
+          </pre>
+          <pre className="mt-3 overflow-x-auto rounded-lg bg-gray-950 p-4 text-xs text-gray-100">
+{`{
+  "status": "completed",
+  "completed_chunks": 10,
+  "total_chunks": 10,
+  "remaining_chunks": 0,
+  "progress": "10/10",
+  "result_image": "data:image/png;base64,...",
+  "summary": {
+    "bleached_chunks": 4,
+    "healthy_chunks": 6,
+    "total_chunks": 10
+  },
+  "chunks": [
+    {
+      "x": 0,
+      "y": 0,
+      "width": 244,
+      "height": 244,
+      "probability": 0.82,
+      "predicted_label": "Bleached Coral"
+    }
+  ]
+}`}
+          </pre>
+        </section>
+
         <section className="mt-12 border-t border-gray-200 pt-10 dark:border-zinc-800">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Training data
@@ -157,21 +205,6 @@ export default function DocsPage() {
               </a>
             </Button>
           </div>
-          <p className="mt-6 text-sm text-gray-600 dark:text-gray-400">
-            <span className="font-medium text-gray-800 dark:text-gray-200">
-              Reference:
-            </span>{" "}
-            NMFS-OSI. NOAA PIFSC ESD Coral Bleaching Dataset. Hugging Face,{" "}
-            <a
-              href={CORAL_DATASET_URL}
-              className="text-sky-700 underline underline-offset-2 hover:text-sky-600 dark:text-sky-400 dark:hover:text-sky-300"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {CORAL_DATASET_URL}
-            </a>
-            .
-          </p>
         </section>
       </div>
     </div>

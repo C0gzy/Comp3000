@@ -1,16 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-
-export interface ClassificationData {
-  predicted_label: string;
-  probability: number;
-}
-
-interface ClassificationResultProps {
-  file: File;
-  result: ClassificationData;
-}
+import { ClassificationResultProps } from "@/lib/types";
 
 function getOverlayColor(probability: number): {
   bg: string;
@@ -44,8 +35,47 @@ function getOverlayColor(probability: number): {
 
 export function ClassificationResult({ file, result }: ClassificationResultProps) {
   const imageUrl = useMemo(() => URL.createObjectURL(file), [file]);
-  const overlay = getOverlayColor(result.probability);
-  const pct = (result.probability * 100).toFixed(1);
+  const isChunkedResult = Boolean(result.result_image);
+  const probability = result.probability ?? 0;
+  const overlay = getOverlayColor(probability);
+  const percentage = (probability * 100).toFixed(1);
+
+  if (isChunkedResult) {
+    return (
+      <div className="w-full overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-zinc-900">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={result.result_image}
+          alt={`Chunked classification result for ${file.name}`}
+          className="block h-auto w-full"
+        />
+        <div className="px-4 py-3">
+          <p className="text-sm font-medium text-gray-900 dark:text-white">
+            Chunked classification complete
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {result.progress ?? `${result.completed_chunks ?? 0}/${result.total_chunks ?? 0}`} chunks analysed
+          </p>
+          {result.summary && (
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="rounded-md bg-red-50 px-2 py-2 text-red-700 dark:bg-red-950/30 dark:text-red-300">
+                <span className="block text-lg font-bold">{result.summary.bleached_chunks}</span>
+                bleached
+              </div>
+              <div className="rounded-md bg-green-50 px-2 py-2 text-green-700 dark:bg-green-950/30 dark:text-green-300">
+                <span className="block text-lg font-bold">{result.summary.healthy_chunks}</span>
+                healthy
+              </div>
+              <div className="rounded-md bg-gray-50 px-2 py-2 text-gray-700 dark:bg-zinc-800 dark:text-gray-300">
+                <span className="block text-lg font-bold">{result.summary.total_chunks}</span>
+                total
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-white dark:bg-zinc-900">
@@ -53,6 +83,7 @@ export function ClassificationResult({ file, result }: ClassificationResultProps
         className="relative w-full"
         style={{ outline: `3px solid ${overlay.border}` }}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imageUrl}
           alt={file.name}
@@ -80,7 +111,7 @@ export function ClassificationResult({ file, result }: ClassificationResultProps
           </p>
         </div>
         <span className={`text-lg font-bold tabular-nums ${overlay.textColor}`}>
-          {pct}%
+          {percentage}%
         </span>
       </div>
     </div>

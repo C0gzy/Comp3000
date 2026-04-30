@@ -3,6 +3,7 @@
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
+import tf_keras
 
 MODEL_PATH = "coral_bleaching_model.h5"
 IMG_SIZE = 224
@@ -22,7 +23,7 @@ def load_and_preprocess_image(image_path: str) -> tf.Tensor:
 
 def predict_image(image_path: str) -> None:
     print(f"Loading model from '{MODEL_PATH}'...")
-    model = tf.keras.models.load_model(MODEL_PATH)
+    model = tf_keras.models.load_model(MODEL_PATH, compile=False)
 
     print(f"Preprocessing image '{image_path}'...")
     image = load_and_preprocess_image(image_path)
