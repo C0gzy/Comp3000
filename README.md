@@ -5,8 +5,41 @@
 > To properly clone or contribute to this repository, make sure you have [Git LFS installed and initialized](https://git-lfs.github.com/) on your system.  
 > Otherwise, model files will not be downloaded correctly.
 
+website link : https://comp3000.vercel.app/
 
 # Coral Reef Health Monitor using classifcation models and deep learning
+
+## How to Use
+
+### AI models
+
+The main two ai models used in this program.
+[Harsher Ai model](/Source/ModelHistory/V20251114_192040.h5)
+[Secondary Model](/Source/ModelHistory/V20251114_153133.h5)
+
+For these two ai models you will require tensorflow and tf_keras. You can also use [ModelTest.py](/Source/ModelTest.py) to test indivdiual images without the frontend interface
+
+### Website
+
+The website uses NextJS and Bun to download and run packages for the website please install bun to continue.
+
+
+these commands will install the needed packages and then run the webstie
+```
+bun install
+
+bun run dev
+```
+
+### Backend
+
+To run the backend that the website uses please install python3 and install the requirements
+
+```
+python3 install -r requirements.txt
+
+pyhon3 main.py
+```
 
 ## current progress:
 | Run Number | Loss    | Accuracy | Precision | Recall |
@@ -23,9 +56,9 @@
 
 
 ## Todo
-- [ ] Improve Recall and Precision 
-- [ ] Add further image Augmentation to improve dataset size
-- [ ] Create Web interface
-- [ ] Compress model
-- [ ] Get more Coral Images
-- [ ] break larger images down into 254x254 pixel chunks
+- [X] Improve Recall and Precision 
+- [X] Add further image Augmentation to improve dataset size
+- [X] Create Web interface
+- [X] Compress model
+- [X] Get more Coral Images
+- [X] break larger images down into 254x254 pixel chunks
