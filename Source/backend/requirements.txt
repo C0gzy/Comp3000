@@ -1,6 +1,7 @@
 flask
 flask-cors
-tensorflow
+tensorflow~=2.18.0
+tf-keras~=2.18.0
 numpy
 matplotlib
 pytest
