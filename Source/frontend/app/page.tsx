@@ -28,7 +28,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
-  const [result, setResult] = useState<{ file: File; data: ClassificationData } | null>(null);
+  const [results, setResults] = useState<{ file: File; data: ClassificationData }[]>([]);
   const [isClassifying, setIsClassifying] = useState(false);
   const [classificationProgress, setClassificationProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,37 +38,43 @@ export default function Home() {
     setIsClassifying(true);
     setClassificationProgress(null);
     setError(null);
+    setResults([]);
     try {
-      const formData = new FormData();
-      formData.append("image", files[0]);
-      const response = await fetch(`${API_BASE}/V1/api/classify`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!response.ok) {
-        throw new Error(`Classification failed: ${response.statusText}`);
-      }
-      const { job_id: jobId }: { job_id: number } = await response.json();
+      for (const [index, file] of files.entries()) {
+        const imageNumber = `${index + 1}/${files.length}`;
+        setClassificationProgress(`${imageNumber}: queueing`);
 
-      while (true) {
-        const statusResponse = await fetch(`${API_BASE}/V1/api/status/${jobId}`);
-        if (!statusResponse.ok) {
-          throw new Error(`Status check failed: ${statusResponse.statusText}`);
+        const formData = new FormData();
+        formData.append("image", file);
+        const response = await fetch(`${API_BASE}/V1/api/classify`, {
+          method: "POST",
+          body: formData,
+        });
+        if (!response.ok) {
+          throw new Error(`${file.name}: classification failed (${response.statusText})`);
         }
+        const { job_id: jobId }: { job_id: number } = await response.json();
 
-        const status: JobStatus = await statusResponse.json();
-        setClassificationProgress(status.progress);
+        while (true) {
+          const statusResponse = await fetch(`${API_BASE}/V1/api/status/${jobId}`);
+          if (!statusResponse.ok) {
+            throw new Error(`${file.name}: status check failed (${statusResponse.statusText})`);
+          }
 
-        if (status.status === "error") {
-          throw new Error(status.error ?? "Classification job failed");
+          const status: JobStatus = await statusResponse.json();
+          setClassificationProgress(`${imageNumber}: ${status.progress}`);
+
+          if (status.status === "error") {
+            throw new Error(`${file.name}: ${status.error ?? "classification job failed"}`);
+          }
+
+          if (status.status === "completed") {
+            setResults((currentResults) => [...currentResults, { file, data: status }]);
+            break;
+          }
+
+          await wait(POLL_INTERVAL_MS);
         }
-
-        if (status.status === "completed") {
-          setResult({ file: files[0], data: status });
-          break;
-        }
-
-        await wait(POLL_INTERVAL_MS);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to classify image. Is the server running?");
@@ -99,6 +105,7 @@ export default function Home() {
     );
     if (dropped.length) {
       setFiles((prev) => [...prev, ...dropped]);
+      setResults([]);
       setError(null);
     }
   }, []);
@@ -118,6 +125,7 @@ export default function Home() {
     );
     if (selected.length) {
       setFiles((prev) => [...prev, ...selected]);
+      setResults([]);
       setError(null);
     }
     event.target.value = "";
@@ -125,7 +133,7 @@ export default function Home() {
 
   const handleClear = useCallback(() => {
     setFiles([]);
-    setResult(null);
+    setResults([]);
     setError(null);
     setClassificationProgress(null);
   }, []);
@@ -166,9 +174,15 @@ export default function Home() {
             onClear={handleClear}
           />
 
-          {result && (
-            <div className="mt-8">
-              <ClassificationResult file={result.file} result={result.data} />
+          {results.length > 0 && (
+            <div className="mt-8 w-full space-y-4">
+              {results.map((result, index) => (
+                <ClassificationResult
+                  key={`${result.file.name}-${index}`}
+                  file={result.file}
+                  result={result.data}
+                />
+              ))}
             </div>
           )}
         </main>
