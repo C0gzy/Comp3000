@@ -4,7 +4,6 @@ import base64
 import pytest
 import numpy as np
 from unittest.mock import patch, MagicMock
-import tensorflow as tf
 from PIL import Image
 
 from main import (
@@ -43,7 +42,7 @@ def sample_image_path(tmp_path):
     """Create a tiny valid PNG on disk and return its path."""
     img = np.random.randint(0, 255, (32, 32, 3), dtype=np.uint8)
     path = str(tmp_path / "sample.png")
-    tf.io.write_file(path, tf.io.encode_png(img))
+    Image.fromarray(img).save(path)
     return path
 
 
@@ -88,14 +87,14 @@ def test_preprocess_returns_correct_shape(sample_image_path):
 # This test checks if the preprocess values are normalised.
 def test_preprocess_values_normalised(sample_image_path):
     tensor = load_and_preprocess_image(sample_image_path)
-    assert tf.reduce_min(tensor).numpy() >= 0.0
-    assert tf.reduce_max(tensor).numpy() <= 1.0
+    assert np.min(tensor) >= 0.0
+    assert np.max(tensor) <= 1.0
 
 
 # This test checks if the preprocess dtype is correct.
 def test_preprocess_dtype(sample_image_path):
     tensor = load_and_preprocess_image(sample_image_path)
-    assert tensor.dtype == tf.float32
+    assert tensor.dtype == np.float32
 
 
 # This test checks if the predict image returns the correct label.

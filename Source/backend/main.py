@@ -1,14 +1,12 @@
 from flask import request, jsonify, Flask
 from flask_cors import CORS
 import os
-import tensorflow as tf
 import numpy as np
 import threading
 import base64
 from io import BytesIO
 from PIL import Image, ImageDraw
 from werkzeug.utils import secure_filename
-import tf_keras
 IMG_SIZE = 224
 CHUNK_SIZE = 224
 HEALTHY_LABEL = "Healthy Coral"
@@ -17,8 +15,8 @@ UNSURE_LABEL = "Unsure"
 CLASS_NAMES = [HEALTHY_LABEL, BLEACHED_LABEL]
 THRESHOLD = 0.5  # probability threshold for binary classification
 BASE_DIR = os.path.dirname(__file__)
-PRIMARY_MODEL_PATH = os.path.join(BASE_DIR, "PrimaryModel.h5")
-SECONDARY_MODEL_PATH = os.path.join(BASE_DIR, "SecondaryModel.h5")
+PRIMARY_MODEL_PATH = os.path.join(BASE_DIR, "PrimaryModel.tflite")
+SECONDARY_MODEL_PATH = os.path.join(BASE_DIR, "SecondaryModel.tflite")
 UNSURE_LOW = 0.4
 UNSURE_HIGH = 0.6
 SECONDARY_BONUS_WEIGHT = 0.2
@@ -44,27 +42,30 @@ print("Starting backend...")
 
 
 def load_model(model_path: str):
-    return tf_keras.models.load_model(model_path, compile=False)
+    from ai_edge_litert.interpreter import Interpreter
+
+    interpreter = Interpreter(model_path=model_path)
+    interpreter.allocate_tensors()
+    return {
+        "interpreter": interpreter,
+        "input_details": interpreter.get_input_details()[0],
+        "output_details": interpreter.get_output_details()[0],
+    }
 
 
 def load_ensemble_models():
     return load_model(PRIMARY_MODEL_PATH), load_model(SECONDARY_MODEL_PATH)
 
 
-def load_and_preprocess_image(image_path: str) -> tf.Tensor:
-    #Load an image , resize, normalise, and add batch dimension.
-    image = tf.io.read_file(image_path)
-    image = tf.image.decode_image(image, channels=3, expand_animations=False)
-    image = tf.image.resize(image, [IMG_SIZE, IMG_SIZE])
-    image = tf.cast(image, tf.float32) / 255.0
-    image = tf.expand_dims(image, axis=0)  # shape: (1, IMG_SIZE, IMG_SIZE, 3)
-    return image
+def load_and_preprocess_image(image_path: str) -> np.ndarray:
+    image = Image.open(image_path)
+    return preprocess_pil_image(image)
 
 # Preprocess a PIL image for the model
-def preprocess_pil_image(image: Image.Image) -> tf.Tensor:
+def preprocess_pil_image(image: Image.Image) -> np.ndarray:
     image = image.convert("RGB").resize((IMG_SIZE, IMG_SIZE))
     image_array = np.asarray(image, dtype=np.float32) / 255.0
-    return tf.expand_dims(tf.convert_to_tensor(image_array), axis=0)
+    return np.expand_dims(image_array, axis=0)
 
 # This classifies the ensemble scores
 def classify_ensemble_scores(primary_probability: float, secondary_probability: float):
@@ -103,12 +104,28 @@ def classify_ensemble_scores(primary_probability: float, secondary_probability: 
 
 
 # This gets the probability of the model
-def model_probability(model, image: tf.Tensor):
-    return float(model.predict(image, verbose=0)[0][0])
+def model_probability(model: dict, image: np.ndarray):
+    if hasattr(model, "predict"):
+        return float(model.predict(image, verbose=0)[0][0])
+
+    interpreter = model["interpreter"]
+    input_details = model["input_details"]
+    output_details = model["output_details"]
+    input_data = image.astype(input_details["dtype"])
+
+    interpreter.set_tensor(input_details["index"], input_data)
+    interpreter.invoke()
+    output = interpreter.get_tensor(output_details["index"])
+
+    scale, zero_point = output_details.get("quantization", (0.0, 0))
+    if scale:
+        output = (output.astype(np.float32) - zero_point) * scale
+
+    return float(np.ravel(output)[0])
 
 
 # This predicts the preprocessed image
-def predict_preprocessed_image(primary_model, secondary_model, image: tf.Tensor):
+def predict_preprocessed_image(primary_model, secondary_model, image: np.ndarray):
     primary_probability = model_probability(primary_model, image)
     secondary_probability = model_probability(secondary_model, image)
     prediction = classify_ensemble_scores(primary_probability, secondary_probability)
