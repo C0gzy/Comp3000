@@ -3,7 +3,6 @@ from flask_cors import CORS
 import os
 import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
 import threading
 import base64
 from io import BytesIO
@@ -18,8 +17,8 @@ UNSURE_LABEL = "Unsure"
 CLASS_NAMES = [HEALTHY_LABEL, BLEACHED_LABEL]
 THRESHOLD = 0.5  # probability threshold for binary classification
 BASE_DIR = os.path.dirname(__file__)
-PRIMARY_MODEL_PATH = os.path.join(BASE_DIR, "V20251114_192040.h5")
-SECONDARY_MODEL_PATH = os.path.join(BASE_DIR, "V20251114_153133.h5")
+PRIMARY_MODEL_PATH = os.path.join(BASE_DIR, "PrimaryModel.h5")
+SECONDARY_MODEL_PATH = os.path.join(BASE_DIR, "SecondaryModel.h5")
 UNSURE_LOW = 0.4
 UNSURE_HIGH = 0.6
 SECONDARY_BONUS_WEIGHT = 0.2
