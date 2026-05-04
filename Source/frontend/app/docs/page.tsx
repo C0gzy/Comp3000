@@ -206,6 +206,17 @@ export default function DocsPage() {
             </Button>
           </div>
         </section>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          Github and model downloads
+        </h2>
+        <p className="mt-2 max-w-2xl text-sm text-gray-600 dark:text-gray-400">
+          The github repository for this project is located at {' '}
+          <a href="https://github.com/C0gzy/Comp3000" target="_blank" rel="noopener noreferrer" className="text-blue-500">Github Repository</a>.
+        </p>
+        <p className="mt-2 max-w-2xl text-sm text-gray-600 dark:text-gray-400">
+          The model downloads for the ai models are located at {' '}
+          <a href="https://github.com/C0gzy/Comp3000/releases/" target="_blank" rel="noopener noreferrer" className="text-blue-500">Model Downloads</a>.
+        </p>
       </div>
     </div>
   );
