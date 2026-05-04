@@ -4,6 +4,7 @@ import os
 import numpy as np
 import threading
 import base64
+import tempfile
 from io import BytesIO
 from PIL import Image, ImageDraw
 from werkzeug.utils import secure_filename
@@ -36,7 +37,7 @@ jobs: dict[int, dict] = {}
 next_job_id = 1
 
 # Required for /classify route - saves uploaded images here
-app.config["UPLOAD_FOLDER"] = os.path.join(os.path.dirname(__file__), "uploads")
+app.config["UPLOAD_FOLDER"] = os.path.join(tempfile.gettempdir(), "coral-backend-uploads")
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 print("Starting backend...")
 
