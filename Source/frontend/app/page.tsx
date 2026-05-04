@@ -12,7 +12,7 @@ import { ClassificationData } from "@/lib/types";
 
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"];
 const Production = true;
-const API_BASE = Production ? 'https://comp3000-rb27.vercel.app/' : "http://localhost:5001";
+const API_BASE = Production ? "https://comp3000-rb27.vercel.app" : "http://localhost:5001";
 const POLL_INTERVAL_MS = 750;
 
 type JobStatus = ClassificationData & {

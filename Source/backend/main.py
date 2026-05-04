@@ -27,7 +27,11 @@ app = Flask(__name__)
 # CORS for the frontend to call the API
 CORS(
     app,
-    origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://comp3000.vercel.app",
+    ],
     methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type"],
 )
