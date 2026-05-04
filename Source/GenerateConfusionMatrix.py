@@ -9,7 +9,7 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classifica
 from tqdm import tqdm
 import tf_keras
 
-MODEL_PATH = "./ModelHistory/V20251116_132020.h5"
+MODEL_PATH = "./ModelHistory/V20251114_192040.h5"
 IMG_SIZE = 224
 BATCH_SIZE = 32
 THRESHOLD = 0.5
